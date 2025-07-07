@@ -11,10 +11,10 @@ resource "aws_vpc" "devopsshack_vpc" {
 }
 
 resource "aws_subnet" "devopsshack_subnet" {
-  count = 2
-  vpc_id                  = aws_vpc.devopsshack_vpc.id
-  cidr_block              = cidrsubnet(aws_vpc.devopsshack_vpc.cidr_block, 8, count.index)
-  availability_zone       = element(["ap-south-1a", "ap-south-1b"], count.index)
+  count                   = 2
+  vpc_id                 = aws_vpc.devopsshack_vpc.id
+  cidr_block             = cidrsubnet(aws_vpc.devopsshack_vpc.cidr_block, 8, count.index)
+  availability_zone      = element(["ap-southeast-2a", "ap-southeast-2b"], count.index)
   map_public_ip_on_launch = true
 
   tags = {
@@ -68,9 +68,9 @@ resource "aws_security_group" "devopsshack_node_sg" {
   vpc_id = aws_vpc.devopsshack_vpc.id
 
   ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -94,6 +94,10 @@ resource "aws_eks_cluster" "devopsshack" {
     subnet_ids         = aws_subnet.devopsshack_subnet[*].id
     security_group_ids = [aws_security_group.devopsshack_cluster_sg.id]
   }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.devopsshack_cluster_role_policy
+  ]
 }
 
 resource "aws_eks_node_group" "devopsshack" {
@@ -114,6 +118,12 @@ resource "aws_eks_node_group" "devopsshack" {
     ec2_ssh_key = var.ssh_key_name
     source_security_group_ids = [aws_security_group.devopsshack_node_sg.id]
   }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.devopsshack_node_group_role_policy,
+    aws_iam_role_policy_attachment.devopsshack_node_group_cni_policy,
+    aws_iam_role_policy_attachment.devopsshack_node_group_registry_policy
+  ]
 }
 
 resource "aws_iam_role" "devopsshack_cluster_role" {
